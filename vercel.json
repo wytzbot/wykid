@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 15
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/payments/cron",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
