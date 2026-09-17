@@ -86,7 +86,7 @@ class NotificationService {
 class VoiceService {
   static bool _speaking = false;
   static void stop() {
-    try { html.window.speechSynthesis.cancel(); } catch (_) {}
+    try { html.window.speechSynthesis?.cancel(); } catch (_) {}
     _speaking = false;
   }
   static void speak(String text) {
@@ -99,8 +99,8 @@ class VoiceService {
       u.volume = 1;
       u.onEnd.listen((_) => _speaking = false);
       _speaking = true;
-      html.window.speechSynthesis.resume();
-      html.window.speechSynthesis.speak(u);
+      html.window.speechSynthesis?.resume();
+      html.window.speechSynthesis?.speak(u);
     } catch (_) {}
   }
 }
@@ -177,14 +177,14 @@ class _WelcomePageState extends State<WelcomePage> with SingleTickerProviderStat
   @override void initState(){super.initState(); _checkPending(); _anim=AnimationController(vsync:this,duration:const Duration(seconds:10))..repeat(); _rotate();}
   Future<void> _checkPending() async {
     final p=await SharedPreferences.getInstance();
-    final query=html.window.location.search;
+    final query=html.window.location.search ?? '';
     final hasPaymentReturn=query.contains('transaction_id=') || query.contains('status=successful') || p.getString('pendingPaymentEmail')!=null;
     if(hasPaymentReturn && mounted){
       Future.delayed(const Duration(milliseconds:300),(){if(mounted)Navigator.push(context,MaterialPageRoute(builder:(_)=>const PremiumPage()));});
     }
   }
   void _rotate(){Future.delayed(const Duration(seconds:3),(){if(!mounted)return;setState(()=>msg=(msg+1)%texts.length);_rotate();});}
-  Future<void> _musicStart() async {if(!music)return;try{await _music.setReleaseMode(ReleaseMode.loop);await _music.play(AssetSource('audio/kids_background.wav'),volume:.12,mode:PlayerMode.media);}catch(_) {}}
+  Future<void> _musicStart() async {if(!music)return;try{await _music.setReleaseMode(ReleaseMode.loop);await _music.play(AssetSource('audio/kids_background.wav'),volume:.12);}catch(_) {}}
   Future<void> _toggle(){setState(()=>music=!music);return music?_musicStart():_music.stop();}
   @override void dispose(){_anim.dispose();_music.dispose();super.dispose();}
   @override Widget build(BuildContext c){final s=MediaQuery.sizeOf(c);return Scaffold(body:Stack(children:[const Positioned.fill(child:_Bg()),...List.generate(14,(i)=>_Float(i,_anim)),SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(20),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:700),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Text('🧸',style:TextStyle(fontSize:72)),const SizedBox(height:5),const Text('Writing Kids',style:TextStyle(fontSize:46,fontWeight:FontWeight.w900)),const SizedBox(height:15),AnimatedSwitcher(duration:const Duration(milliseconds:250),child:Text(texts[msg],key:ValueKey(msg),textAlign:TextAlign.center,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800))),const SizedBox(height:32),SizedBox(width:min(s.width*.86,390),height:68,child:FilledButton(onPressed:()async{await _musicStart();if(c.mounted)Navigator.push(c,MaterialPageRoute(builder:(_)=>const HomePage()));},child:const Text('▶  START LEARNING',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)))),IconButton(onPressed:_toggle,icon:Icon(music?Icons.music_note:Icons.music_off)),const Text('Fast • offline-first • no child login required',textAlign:TextAlign.center)])))))]));}
@@ -206,11 +206,70 @@ class _PracticePageState extends State<PracticePage>{late List<LessonItem> items
  void next(){setState((){i=(i+1)%items.length;accuracy=0;completed=false;hint=true;});VoiceService.stop();}
  void shuffle(){setState((){items.shuffle();i=0;accuracy=0;completed=false;hint=true;});VoiceService.stop();}
  Future<void> score(double v)async{final p=(v*100).round().clamp(0,100).toInt();final prefs=await SharedPreferences.getInstance();final k='mastery_${widget.kind}_${cur.text}';await prefs.setInt(k,max(prefs.getInt(k)??0,p));if(!mounted)return;setState((){accuracy=p;completed=p>=80&&!hint;});if(p>=80&&!hint)Sfx.play('excellent.wav');else if(p<40)Sfx.play('try_again.wav');else Sfx.play('good.wav',volume:.5);}
- @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:Text(widget.kind,style:const TextStyle(fontWeight:FontWeight.w900))),body:PlayfulBackground(child:ListView(padding:const EdgeInsets.all(18),children:[const Text('TRACE → COPY → WRITE',textAlign:TextAlign.center,style:TextStyle(fontWeight:FontWeight.w900,fontSize:18)),const SizedBox(height:7),Text(hint?'Trace the guide':'Now write it yourself!',textAlign:TextAlign.center),const SizedBox(height:8),Text(cur.text,textAlign:TextAlign.center,style:TextStyle(fontSize:MediaQuery.sizeOf(c).width<500?82:120,fontWeight:FontWeight.w900,color:hint?Colors.black26:null)),Wrap(alignment:WrapAlignment.center,spacing:8,children:[if(hint)TextButton.icon(onPressed:(){setState(()=>hint=false);VoiceService.speak(cur.text);},icon:const Icon(Icons.visibility_off),label:const Text('Hide Guide')),IconButton(tooltip:'Hear pronunciation',onPressed:()=>VoiceService.speak(cur.text),icon:const Icon(Icons.volume_up))]),_TracePad(guide:hint?cur.text:null,onScore:score,onClear:reset),if(accuracy>0)Center(child:Column(children:[Text('$accuracy% accuracy',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:accuracy<40?Colors.red:accuracy<80?Colors.orange:Colors.green)),if(accuracy<40)const Text('Try again — you can do it! 💕'),if(completed)const Text('Amazing! 🎉👏',style:TextStyle(fontWeight:FontWeight.w900,fontSize:18))])),Wrap(alignment:WrapAlignment.center,spacing:7,children:[OutlinedButton.icon(onPressed:reset,icon:const Icon(Icons.refresh),label:const Text('Restart')),OutlinedButton.icon(onPressed:()=>setState(()=>hint=!hint),icon:Icon(hint?Icons.visibility_off:Icons.lightbulb),label:Text(hint?'Hide Hint':'Show Hint')),OutlinedButton.icon(onPressed:shuffle,icon:const Icon(Icons.shuffle),label:const Text('Shuffle')),OutlinedButton.icon(onPressed:next,icon:const Icon(Icons.skip_next),label:const Text('Next'))])));}
+ @override Widget build(BuildContext c) => Scaffold(
+  appBar: AppBar(title: Text(widget.kind, style: const TextStyle(fontWeight: FontWeight.w900))),
+  body: PlayfulBackground(
+    child: ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        const Text('TRACE → COPY → WRITE', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+        const SizedBox(height: 7),
+        Text(hint ? 'Trace the guide' : 'Now write it yourself!', textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        Text(cur.text, textAlign: TextAlign.center, style: TextStyle(fontSize: MediaQuery.sizeOf(c).width < 500 ? 82 : 120, fontWeight: FontWeight.w900, color: hint ? Colors.black26 : null)),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          children: [
+            if (hint) TextButton.icon(onPressed: () { setState(() => hint = false); VoiceService.speak(cur.text); }, icon: const Icon(Icons.visibility_off), label: const Text('Hide Guide')),
+            IconButton(tooltip: 'Hear pronunciation', onPressed: () => VoiceService.speak(cur.text), icon: const Icon(Icons.volume_up)),
+          ],
+        ),
+        _TracePad(guide: hint ? cur.text : null, onScore: score, onClear: reset),
+        if (accuracy > 0) Center(child: Column(children: [
+          Text('$accuracy% accuracy', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: accuracy < 40 ? Colors.red : accuracy < 80 ? Colors.orange : Colors.green)),
+          if (accuracy < 40) const Text('Try again — you can do it! 💕'),
+          if (completed) const Text('Amazing! 🎉👏', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+        ])),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 7,
+          children: [
+            OutlinedButton.icon(onPressed: reset, icon: const Icon(Icons.refresh), label: const Text('Restart')),
+            OutlinedButton.icon(onPressed: () => setState(() => hint = !hint), icon: Icon(hint ? Icons.visibility_off : Icons.lightbulb), label: Text(hint ? 'Hide Hint' : 'Show Hint')),
+            OutlinedButton.icon(onPressed: shuffle, icon: const Icon(Icons.shuffle), label: const Text('Shuffle')),
+            OutlinedButton.icon(onPressed: next, icon: const Icon(Icons.skip_next), label: const Text('Next')),
+          ],
+        ),
+      ],
+    ),
+  ),
+);
 }
 class _TracePad extends StatefulWidget{final String? guide;final Future<void> Function(double) onScore;final VoidCallback onClear;const _TracePad({required this.guide,required this.onScore,required this.onClear});@override State<_TracePad> createState()=>_TracePadState();}
 class _TracePadState extends State<_TracePad>{final strokes=<List<Offset>>[];List<Offset>? active;void clear(){setState((){strokes.clear();active=null;});widget.onClear();}void end(){final s=active;if(s==null||s.length<2)return;setState((){strokes.add(List.of(s));active=null;});final n=strokes.fold<int>(0,(a,b)=>a+b.length);unawaited(widget.onScore(min(1.0,n/180.0)));}
- @override Widget build(BuildContext c){final all=[...strokes,if(active!=null)active!];return Container(height:280,margin:const EdgeInsets.symmetric(vertical:8),decoration:BoxDecoration(color:Colors.white.withOpacity(.9),borderRadius:BorderRadius.circular(24),border:Border.all(width:2)),child:Stack(children:[if(widget.guide!=null)Center(child:IgnorePointer(child:Opacity(opacity:.1,child:Text(widget.guide!,style:const TextStyle(fontSize:170,fontWeight:FontWeight.w900))))),GestureDetector(behavior:HitTestBehavior.opaque,onPanStart:(d){setState(()=>active=[d.localPosition]);Sfx.play('game_tick.wav',volume:.3);},onPanUpdate:(d)=>setState(()=>active?.add(d.localPosition)),onPanEnd:(_)=>end(),child:CustomPaint(painter:_StrokePainter(all),child:const Center(child:Text('Write here ✏️',style:TextStyle(color:Colors.black26,fontSize:20)))),Positioned(right:8,bottom:5,child:IconButton(tooltip:'Clear',onPressed:clear,icon:const Icon(Icons.backspace_outlined))) ]));}}
+ @override Widget build(BuildContext c) {
+  final all = [...strokes, if (active != null) active!];
+  return Container(
+    height: 280,
+    margin: const EdgeInsets.symmetric(vertical: 8),
+    decoration: BoxDecoration(color: Colors.white.withOpacity(.9), borderRadius: BorderRadius.circular(24), border: Border.all(width: 2)),
+    child: Stack(
+      children: [
+        if (widget.guide != null)
+          Center(child: IgnorePointer(child: Opacity(opacity: .1, child: Text(widget.guide!, style: const TextStyle(fontSize: 170, fontWeight: FontWeight.w900))))),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: (d) { setState(() => active = [d.localPosition]); Sfx.play('game_tick.wav', volume: .3); },
+          onPanUpdate: (d) { if (active != null) setState(() => active!.add(d.localPosition)); },
+          onPanEnd: (_) => end(),
+          child: CustomPaint(painter: _StrokePainter(all), child: const Center(child: Text('Write here ✏️', style: TextStyle(color: Colors.black26, fontSize: 20)))),
+        ),
+        Positioned(right: 8, bottom: 5, child: IconButton(tooltip: 'Clear', onPressed: clear, icon: const Icon(Icons.backspace_outlined))),
+      ],
+    ),
+  );
+}}
 class _StrokePainter extends CustomPainter{final List<List<Offset>> s;_StrokePainter(this.s);@override void paint(Canvas c,Size z){final p=Paint()..strokeWidth=7..strokeCap=StrokeCap.round;for(final q in s){for(var i=1;i<q.length;i++)c.drawLine(q[i-1],q[i],p);}}@override bool shouldRepaint(covariant _StrokePainter o)=>true;}
 
 class MosquitoGamePage extends StatefulWidget{const MosquitoGamePage({super.key});@override State<MosquitoGamePage> createState()=>_MosquitoGamePageState();}
@@ -223,13 +282,42 @@ class _MosquitoGamePageState extends State<MosquitoGamePage> with SingleTickerPr
   for(final b in bursts){b.life-=dt;}bursts.removeWhere((b)=>b.life<=0);if(mosquitoes.every((m)=>m.dead)){level++;_spawnLevel();changed=true;}if(changed&&mounted)setState((){});}
  void hit(Offset local,Size size){final q=Offset(local.dx/size.width,local.dy/size.height);for(final m in mosquitoes.reversed.where((m)=>!m.dead)){final mp=Offset(m.p.dx*size.width,m.p.dy*size.height);if((mp-local).distance<m.size*1.15){m.dead=true;score+=10*level;bursts.add(_Burst(m.p));Sfx.play('mosquito_pop.wav',volume:.75);setState((){});break;}}}
  @override void dispose(){tick.dispose();super.dispose();}
- @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('Mosquito Pop 🦟',style:TextStyle(fontWeight:FontWeight.w900))),body:Column(children:[Padding(padding:const EdgeInsets.fromLTRB(16,10,16,4),child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text('Level $level',style:const TextStyle(fontWeight:FontWeight.w900)),Text('Score $score',style:const TextStyle(fontWeight:FontWeight.w900)),Text('Missed $missed',style:const TextStyle(fontWeight:FontWeight.w900))])),Expanded(child:LayoutBuilder(builder:(c,con)=>GestureDetector(onTapDown:(d)=>hit(d.localPosition,Size(con.maxWidth,con.maxHeight)),child:CustomPaint(size:Size.infinite,painter:_GamePainter(mosquitoes,bursts,kidX,level)))),const Padding(padding:EdgeInsets.all(12),child:Text('Stay in your spot and tap the mosquitoes before they reach you! 🧸',textAlign:TextAlign.center,style:TextStyle(fontWeight:FontWeight.w700))) ]));}
+ @override Widget build(BuildContext c) => Scaffold(
+  appBar: AppBar(title: const Text('Mosquito Pop 🦟', style: TextStyle(fontWeight: FontWeight.w900))),
+  body: Column(
+    children: [
+      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text('Level $level', style: const TextStyle(fontWeight: FontWeight.w900)),
+        Text('Score $score', style: const TextStyle(fontWeight: FontWeight.w900)),
+        Text('Missed $missed', style: const TextStyle(fontWeight: FontWeight.w900)),
+      ])),
+      Expanded(
+        child: LayoutBuilder(builder: (c, con) => GestureDetector(
+          onTapDown: (d) => hit(d.localPosition, Size(con.maxWidth, con.maxHeight)),
+          child: CustomPaint(size: Size.infinite, painter: _GamePainter(mosquitoes, bursts, kidX, level)),
+        )),
+      ),
+      const Padding(padding: EdgeInsets.all(12), child: Text('Stay in your spot and tap the mosquitoes before they reach you! 🧸', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700))),
+    ],
+  ),
+);}
 }
 class _Burst{Offset p;double life=0.28;_Burst(this.p);}
 class _GamePainter extends CustomPainter{final List<Mosquito> ms;final List<_Burst> bs;final double kid;final int level;_GamePainter(this.ms,this.bs,this.kid,this.level);@override void paint(Canvas c,Size s){c.drawRect(Offset.zero&s,Paint()..color=const Color(0xFFEAF8FF));final kp=Offset(kid*s.width,.84*s.height);final kidPaint=Paint()..color=const Color(0xFFFFC98B);c.drawCircle(kp,30,kidPaint);c.drawCircle(kp.translate(0,-35),22,Paint()..color=const Color(0xFFFFD9B0));for(final m in ms.where((x)=>!x.dead)){final p=Offset(m.p.dx*s.width,m.p.dy*s.height);final wiggle=sin(m.phase)*5;final q=p.translate(wiggle,0);final paint=Paint()..color=const Color(0xFF303030);c.drawCircle(q,8,paint);c.drawLine(q.translate(-10,-3),q.translate(10,3),paint..strokeWidth=3);c.drawCircle(q.translate(-8,-6),5,Paint()..color=Colors.white);c.drawCircle(q.translate(8,-6),5,Paint()..color=Colors.white);}for(final b in bs){final p=Offset(b.p.dx*s.width,b.p.dy*s.height);final r=(1-b.life/.28)*45;final paint=Paint()..color=Colors.red.withOpacity(b.life/.28)..style=PaintingStyle.stroke..strokeWidth=4;c.drawCircle(p,r,paint);}}@override bool shouldRepaint(covariant _GamePainter o)=>true;}
 
 class NewWordsPage extends StatefulWidget{const NewWordsPage({super.key});@override State<NewWordsPage> createState()=>_NewWordsPageState();}
 class _NewWordsPageState extends State<NewWordsPage>{final rng=Random();String word='';bool premium=false,loading=true;@override void initState(){super.initState();_load();}Future<void> _load()async{await WordLibrary.ensureLoaded();final p=await SharedPreferences.getInstance();premium=p.getBool('premium')??false;if(!mounted)return;loading=false;_pick();}void _pick(){final pool=premium?[...WordLibrary.free,...WordLibrary.paid]:WordLibrary.free;if(pool.isEmpty)return;String next=word;if(pool.length==1){next=pool.first;}else{do{next=pool[rng.nextInt(pool.length)];}while(next==word);}setState(()=>word=next);} @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('New Words ✨')),body:Center(child:Padding(padding:const EdgeInsets.all(24),child:loading?const CircularProgressIndicator():Column(mainAxisAlignment:MainAxisAlignment.center,children:[Text(premium?'Full one-time AI-prepared library':'Free one-time AI-prepared library',style:const TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:12),Text(word,style:const TextStyle(fontSize:72,fontWeight:FontWeight.w900)),IconButton(onPressed:()=>VoiceService.speak(word),icon:const Icon(Icons.volume_up,size:34)),const SizedBox(height:15),FilledButton.icon(onPressed:_pick,icon:const Icon(Icons.shuffle),label:const Text('Pick another word'))]))));}
+
+String? _nextAuthorizationType(dynamic action) {
+  if (action is Map) {
+    if (action['type']?.toString() == 'authorize') {
+      final auth = action['authorization'];
+      if (auth is Map) return auth['type']?.toString();
+    }
+    return action['type']?.toString();
+  }
+  return null;
+}
 
 class PremiumPage extends StatefulWidget {
   const PremiumPage({super.key});
@@ -290,14 +378,14 @@ class _PremiumPageState extends State<PremiumPage> {
     try{final r=await http.post(Uri.parse('/api/payments/initiate'),headers:{'content-type':'application/json'},body:jsonEncode({'name':name,'email':mail,'cardNumber':cn,'expiry':expiry.text.replaceAll(RegExp(r'\s|/'),''),'cvv':cvv.text.trim(),'currency':currency}));final d=jsonDecode(r.body) as Map<String,dynamic>;if(r.statusCode>=400)throw Exception(d['message']??'Payment could not start');await _handleChargeResponse(d,mail);}catch(e){status='Payment error: $e';}finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> _handleChargeResponse(Map<String,dynamic>d,String mail)async{
-    chargeId=d['chargeId']?.toString();final na=d['nextAction'];nextAuth=na is Map && na['type']=='authorize' ? na['authorization']?['type']?.toString() : na?['type']?.toString();final p=await SharedPreferences.getInstance();if(chargeId!=null)await p.setString('pendingChargeId',chargeId!);await p.setString('pendingPaymentEmail',mail);await p.setString('premiumEmail',mail);
+    chargeId=d['chargeId']?.toString();final na=d['nextAction'];nextAuth = _nextAuthorizationType(na);final p=await SharedPreferences.getInstance();if(chargeId!=null)await p.setString('pendingChargeId',chargeId!);await p.setString('pendingPaymentEmail',mail);await p.setString('premiumEmail',mail);
     final redirect=d['redirectUrl']?.toString();if(redirect!=null&&redirect.isNotEmpty){html.window.location.href=redirect;return;}
     final st=d['status']?.toString();if(st=='succeeded'&&chargeId!=null){await _verify(chargeId!);return;}
     if(nextAuth=='requires_pin'||nextAuth=='pin')status='Enter your card PIN to continue.';else if(nextAuth=='requires_otp'||nextAuth=='otp')status='Enter the OTP sent by your bank.';else status='Payment authorization is required to continue.';
   }
   Future<void> authorize(String type)async{
     if(chargeId==null)return;final value=(type=='pin'?pin.text:otp.text).trim();if(value.isEmpty){setState(()=>status='Enter the authorization code first.');return;}setState(()=>busy=true);
-    try{final r=await http.post(Uri.parse('/api/payments/authorize'),headers:{'content-type':'application/json'},body:jsonEncode({'chargeId':chargeId,'type':type,'value':value}));final d=jsonDecode(r.body) as Map<String,dynamic>;if(r.statusCode>=400)throw Exception(d['message']??'Authorization failed');final na=d['nextAction'];nextAuth=na is Map && na['type']=='authorize' ? na['authorization']?['type']?.toString() : na?['type']?.toString();final redirect=d['redirectUrl']?.toString();if(redirect!=null&&redirect.isNotEmpty){html.window.location.href=redirect;return;}if(d['status']=='succeeded'){await _verify(chargeId!);}else if(nextAuth=='requires_otp'||nextAuth=='otp'){status='Enter the OTP sent by your bank.';}else if(nextAuth=='requires_pin'||nextAuth=='pin'){status='Enter your card PIN to continue.';}else status='Additional payment authorization is required.';}catch(e){status='Payment authorization error: $e';}finally{if(mounted)setState(()=>busy=false);}
+    try{final r=await http.post(Uri.parse('/api/payments/authorize'),headers:{'content-type':'application/json'},body:jsonEncode({'chargeId':chargeId,'type':type,'value':value}));final d=jsonDecode(r.body) as Map<String,dynamic>;if(r.statusCode>=400)throw Exception(d['message']??'Authorization failed');final na=d['nextAction'];nextAuth = _nextAuthorizationType(na);final redirect=d['redirectUrl']?.toString();if(redirect!=null&&redirect.isNotEmpty){html.window.location.href=redirect;return;}if(d['status']=='succeeded'){await _verify(chargeId!);}else if(nextAuth=='requires_otp'||nextAuth=='otp'){status='Enter the OTP sent by your bank.';}else if(nextAuth=='requires_pin'||nextAuth=='pin'){status='Enter your card PIN to continue.';}else status='Additional payment authorization is required.';}catch(e){status='Payment authorization error: $e';}finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> cancelSubscription()async{final mail=email.text.trim().toLowerCase();if(!RegExp(r'^\S+@\S+\.\S+$').hasMatch(mail))return;setState(()=>busy=true);try{final r=await http.post(Uri.parse('/api/payments/cancel'),headers:{'content-type':'application/json'},body:jsonEncode({'email':mail}));final d=jsonDecode(r.body) as Map<String,dynamic>;if(r.statusCode>=400)throw Exception(d['message']??'Could not cancel');final p=await SharedPreferences.getInstance();await p.setBool('premium',false);premium=false;status='Premium has been cancelled. No further automatic charges will be made.';}catch(e){status='Cancellation error: $e';}finally{if(mounted)setState(()=>busy=false);}}
   @override void dispose(){full.dispose();email.dispose();card.dispose();expiry.dispose();cvv.dispose();pin.dispose();otp.dispose();super.dispose();}
@@ -327,7 +415,7 @@ class _SettingsPageState extends State<SettingsPage>{bool reminders=false,enabli
 }
 class _InfoPageButton extends StatelessWidget{final String title,body;const _InfoPageButton(this.title,this.body);@override Widget build(BuildContext c)=>Card(child:ListTile(title:Text(title,style:const TextStyle(fontWeight:FontWeight.w800)),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>InfoPage(title:title,body:body)))));}
 const _legalPrivacy='Writing Kids is designed to minimize personal data. Core lessons and progress stay on the device. Optional Firebase services may use an anonymous identifier and a push token when notifications are enabled. Payment details are sent only for payment processing and must not be stored by the app. We do not intentionally collect children’s location, contacts, photos or advertising identifiers for core learning. Parents should review the applicable app-store privacy disclosures and provider notices.';
-const _legalTerms='Writing Kids is educational software for family learning. Use it with appropriate adult supervision. Premium is a recurring monthly subscription priced at $1.99 USD or ₦2,000 NGN depending on the selected billing currency. Flutterwave v4 tokenizes the payment method for future recurring charges. Cancel before the next billing date to stop future charges. Premium access is granted only after server-side verification. Educational outcomes are not guaranteed.';
+const _legalTerms=r'Writing Kids is educational software for family learning. Use it with appropriate adult supervision. Premium is a recurring monthly subscription priced at $1.99 USD or ₦2,000 NGN depending on the selected billing currency. Flutterwave v4 tokenizes the payment method for future recurring charges. Cancel before the next billing date to stop future charges. Premium access is granted only after server-side verification. Educational outcomes are not guaranteed.';
 const _legalAbout='Writing Kids is a lightweight handwriting practice app built around TRACE → COPY → WRITE, simple words, pronunciation, progress and playful mini-games. The core learning experience is designed to remain useful offline and on slower devices.';
 const _legalDisclaimer='Writing Kids is an educational practice tool, not medical, therapeutic, diagnostic or professional educational advice. Children may need parent, teacher or specialist support. Internet-dependent services such as push notifications and payments may be unavailable. Card entry is transmitted securely to the server and encrypted for Flutterwave v4 processing; PIN, OTP and 3-D Secure steps are handled by Flutterwave and the issuing bank. Premium is recurring and may continue charging until cancelled.';
 class InfoPage extends StatelessWidget{final String title,body;const InfoPage({super.key,required this.title,required this.body});@override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:Text(title)),body:SingleChildScrollView(padding:const EdgeInsets.all(22),child:Text(body,style:const TextStyle(fontSize:16,height:1.55))));}
