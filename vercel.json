@@ -9,5 +9,7 @@
       "path": "/api/payments/cron",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "buildCommand": "bash vercel-build.sh",
+  "outputDirectory": "build/web"
 }
